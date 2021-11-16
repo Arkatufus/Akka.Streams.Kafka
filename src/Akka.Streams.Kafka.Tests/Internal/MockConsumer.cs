@@ -15,7 +15,18 @@ namespace Akka.Streams.Kafka.Tests.Internal
 {
     public static class MockConsumer
     {
+        public delegate (List<TopicPartitionOffset>, Exception)
+            OnCompleteHandler(List<TopicPartitionOffset> result);
+        
         public static readonly TimeSpan CloseTimeout = TimeSpan.FromMilliseconds(500);
+        
+        public interface ICommitHandler<K, V>
+        {
+            void OnOffsetsCommitted(List<TopicPartitionOffset> offsets, Action<IConsumer<K, V>, CommittedOffsets> callback);
+            void OnComplete();
+            bool AllComplete();
+            bool AllComplete(long minOffset);
+        }
     }
     
     public class MockConsumer<TKey, TValue>

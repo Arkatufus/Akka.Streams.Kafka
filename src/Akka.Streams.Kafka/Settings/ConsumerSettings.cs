@@ -408,6 +408,13 @@ namespace Akka.Streams.Kafka.Settings
                 .SetStatisticsHandler((c, json) => statisticHandler?.Invoke(c, json))
                 .Build();
         }
+
+        public static ConsumerBuilder<TKey, TValue> CreateKafkaConsumerBuilder(ConsumerSettings<TKey, TValue> settings)
+        {
+            return new ConsumerBuilder<TKey, TValue>(settings.Properties)
+                .SetKeyDeserializer(settings.KeyDeserializer)
+                .SetValueDeserializer(settings.ValueDeserializer);
+        }
     }
 
     internal sealed class RebalanceListener<TKey, TValue>
