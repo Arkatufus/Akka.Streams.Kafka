@@ -15,7 +15,7 @@ namespace Akka.Streams.Kafka
 
         private readonly IConsumerRebalanceListener _consumerRebalanceListener;  
         
-        internal IConsumer<K, V> Create(ConsumerSettings<K, V> settings)
+        internal ConsumerFacade<K, V> Create(ConsumerSettings<K, V> settings)
         {
             return new ConsumerFacade<K, V>(settings, _consumerRebalanceListener);
         }

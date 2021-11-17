@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
+using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Streams.Kafka.Internal;
 using Akka.Streams.Kafka.Stages.Consumers.Exceptions;
@@ -55,21 +56,22 @@ namespace Akka.Streams.Kafka.Settings
                 valueDeserializer: valueDeserializer,
                 pollInterval: config.GetTimeSpan("poll-interval", TimeSpan.FromMilliseconds(50)),
                 pollTimeout: config.GetTimeSpan("poll-timeout", TimeSpan.FromMilliseconds(50)),
-                partitionHandlerWarning: config.GetTimeSpan("partition-handler-warning", TimeSpan.FromSeconds(5)),
-                commitTimeWarning: config.GetTimeSpan("commit-time-warning", TimeSpan.FromSeconds(1)),
                 commitTimeout: config.GetTimeSpan("commit-timeout", TimeSpan.FromSeconds(15)),
                 commitRefreshInterval: config.GetTimeSpan("commit-refresh-interval", Timeout.InfiniteTimeSpan, allowInfinite: true),
                 stopTimeout: config.GetTimeSpan("stop-timeout", TimeSpan.FromSeconds(30)),
                 positionTimeout: config.GetTimeSpan("position-timeout", TimeSpan.FromSeconds(5)),
+                commitTimeWarning: config.GetTimeSpan("commit-time-warning", TimeSpan.FromSeconds(1)),
+                partitionHandlerWarning: config.GetTimeSpan("partition-handler-warning", TimeSpan.FromSeconds(5)),
                 waitClosePartition: config.GetTimeSpan("wait-close-partition", TimeSpan.FromSeconds(1)),
-                bufferSize: config.GetInt("buffer-size", 50),
                 metadataRequestTimeout: config.GetTimeSpan("metadata-request-timeout", TimeSpan.FromSeconds(5)),
                 drainingCheckInterval: config.GetTimeSpan("eos-draining-check-interval", TimeSpan.FromMilliseconds(30)),
-                dispatcherId: config.GetString("use-dispatcher", "akka.kafka.default-dispatcher"),
                 autoCreateTopicsEnabled: config.GetBoolean("allow.auto.create.topics", true),
+                bufferSize: config.GetInt("buffer-size", 50),
+                dispatcherId: config.GetString("use-dispatcher", "akka.kafka.default-dispatcher"),
                 properties: properties,
                 connectionCheckerSettings: ConnectionCheckerSettings.Create(config.GetConfig(ConnectionCheckerSettings.ConfigPath)),
-                consumerFactory: ConsumerFactory<TKey, TValue>.Empty);
+                consumerFactory: ConsumerFactory<TKey, TValue>.Empty,
+                enrichAsync: DefaultEnrichSettings);
         }
 
         /// <summary>
@@ -153,6 +155,9 @@ namespace Akka.Streams.Kafka.Settings
         
         [JsonIgnore]
         public ConsumerFactory<TKey, TValue> ConsumerFactory { get; }
+        
+        [JsonIgnore]
+        public Func<ConsumerSettings<TKey, TValue>, Task<ConsumerSettings<TKey, TValue>>> EnrichAsync { get; }
 
         [Obsolete("Please use ctor with consumerFactory parameter")]
         public ConsumerSettings(
@@ -177,7 +182,7 @@ namespace Akka.Streams.Kafka.Settings
                 keyDeserializer, valueDeserializer, pollInterval, pollTimeout, commitTimeout, commitRefreshInterval,
                 stopTimeout, positionTimeout, commitTimeWarning, partitionHandlerWarning, waitClosePartition,
                 metadataRequestTimeout, drainingCheckInterval, autoCreateTopicsEnabled, bufferSize, dispatcherId,
-                properties, connectionCheckerSettings, null);
+                properties, connectionCheckerSettings, ConsumerFactory<TKey, TValue>.Empty, null);
 
         public ConsumerSettings(
             IDeserializer<TKey> keyDeserializer, 
@@ -197,7 +202,8 @@ namespace Akka.Streams.Kafka.Settings
             int bufferSize, string dispatcherId, 
             IImmutableDictionary<string, string> properties,
             ConnectionCheckerSettings connectionCheckerSettings,
-            ConsumerFactory<TKey, TValue> consumerFactory)
+            ConsumerFactory<TKey, TValue> consumerFactory,
+            Func<ConsumerSettings<TKey, TValue>, Task<ConsumerSettings<TKey, TValue>>> enrichAsync)
         {
             KeyDeserializer = keyDeserializer;
             ValueDeserializer = valueDeserializer;
@@ -218,6 +224,7 @@ namespace Akka.Streams.Kafka.Settings
             AutoCreateTopicsEnabled = autoCreateTopicsEnabled;
             ConnectionCheckerSettings = connectionCheckerSettings;
             ConsumerFactory = consumerFactory;
+            EnrichAsync = enrichAsync;
         }
 
         public string GetProperty(string key) => Properties.GetValueOrDefault(key, null);
@@ -334,6 +341,9 @@ namespace Akka.Streams.Kafka.Settings
         public ConsumerSettings<TKey, TValue> WithConsumerFactory(ConsumerFactory<TKey, TValue> consumerFactory) 
             => Copy(consumerFactory: consumerFactory);
         
+        public ConsumerSettings<TKey, TValue> WithEnrichAsync(Func<ConsumerSettings<TKey, TValue>, Task<ConsumerSettings<TKey, TValue>>> enrichAsync) 
+            => Copy(enrichAsync: enrichAsync);
+        
         /// <summary>
         /// Assigned consumer group Id, or null
         /// </summary>
@@ -359,7 +369,8 @@ namespace Akka.Streams.Kafka.Settings
             IImmutableDictionary<string, string> properties = null,
             ConnectionCheckerSettings connectionCheckerSettings = null,
             TimeSpan? closeTimeout = null,
-            ConsumerFactory<TKey, TValue> consumerFactory = null
+            ConsumerFactory<TKey, TValue> consumerFactory = null,
+            Func<ConsumerSettings<TKey, TValue>, Task<ConsumerSettings<TKey, TValue>>> enrichAsync = null
             ) =>
             new ConsumerSettings<TKey, TValue>(
                 keyDeserializer: keyDeserializer ?? this.KeyDeserializer,
@@ -380,8 +391,12 @@ namespace Akka.Streams.Kafka.Settings
                 autoCreateTopicsEnabled: autoCreateTopicsEnabled ?? this.AutoCreateTopicsEnabled,
                 properties: properties ?? this.Properties,
                 connectionCheckerSettings: connectionCheckerSettings ?? this.ConnectionCheckerSettings,
-                consumerFactory: consumerFactory ?? this.ConsumerFactory);
+                consumerFactory: consumerFactory ?? this.ConsumerFactory,
+                enrichAsync: enrichAsync ?? this.EnrichAsync);
 
+        private static Task<ConsumerSettings<TKey, TValue>> DefaultEnrichSettings(
+            ConsumerSettings<TKey, TValue> settings)
+            => Task.FromResult(settings);
 /*
 /// <summary>
 /// Creates new kafka consumer, using event handlers provided

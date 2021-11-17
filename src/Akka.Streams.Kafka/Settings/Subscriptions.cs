@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Akka.Actor;
 using Akka.Streams.Kafka.Helpers;
 using Akka.Streams.Util;
 using Akka.Util;
@@ -23,6 +24,8 @@ namespace Akka.Streams.Kafka.Settings
 
     public interface IAutoSubscription : ISubscription
     {
+        IActorRef RebalanceListener { get; }
+        
         /// <summary>
         /// Partition events handler
         /// </summary>
