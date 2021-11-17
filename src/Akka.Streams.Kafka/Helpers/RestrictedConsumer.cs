@@ -7,7 +7,7 @@ using Confluent.Kafka;
 namespace Akka.Streams.Kafka.Helpers
 {
     /// <summary>
-    /// Offers parts of <see cref="IConsumer{K,V}"/> API which becomes available to <see cref="IPartitionEventHandler"/>
+    /// Offers parts of <see cref="IConsumer{K,V}"/> API which becomes available to <see cref="PartitionAssignmentHandler"/>
     /// </summary>
     public interface IRestrictedConsumer
     {
@@ -43,7 +43,7 @@ namespace Akka.Streams.Kafka.Helpers
     }
 
     /// <summary>
-    /// Offers parts of <see cref="IConsumer{K,V}"/> API which becomes available to <see cref="IPartitionEventHandler"/>
+    /// Offers parts of <see cref="IConsumer{K,V}"/> API which becomes available to <see cref="PartitionAssignmentHandler"/>
     /// </summary>
     internal class RestrictedConsumer<K, V> : IRestrictedConsumer
     {

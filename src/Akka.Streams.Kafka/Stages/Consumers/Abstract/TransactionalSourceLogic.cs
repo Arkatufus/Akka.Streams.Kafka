@@ -140,7 +140,7 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
         }
 
         /// <inheritdoc />
-        protected override IPartitionEventHandler AddToPartitionAssignmentHandler(IPartitionEventHandler handler)
+        protected override PartitionAssignmentHandler AddToPartitionAssignmentHandler(PartitionAssignmentHandler handler)
         {
             var blockingRevokedCall = new PartitionEventHandlers.AsyncCallbacks(
                 partitionAssignedCallback: _ => { },

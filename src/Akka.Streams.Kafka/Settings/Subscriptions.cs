@@ -26,12 +26,12 @@ namespace Akka.Streams.Kafka.Settings
         /// <summary>
         /// Partition events handler
         /// </summary>
-        Option<IPartitionEventHandler> PartitionEventsHandler { get; }
+        Option<PartitionAssignmentHandler> PartitionEventsHandler { get; }
         
         /// <summary>
-        /// Allows to specify custom partition events handler. See more at <see cref="IPartitionEventHandler"/>
+        /// Allows to specify custom partition events handler. See more at <see cref="PartitionAssignmentHandler"/>
         /// </summary>
-        IAutoSubscription WithPartitionEventsHandler(IPartitionEventHandler partitionEventHandler);
+        IAutoSubscription WithPartitionEventsHandler(PartitionAssignmentHandler partitionAssignmentHandler);
     }
 
     /// <summary>
@@ -64,12 +64,12 @@ namespace Akka.Streams.Kafka.Settings
         }
 
         /// <inheritdoc />
-        public Option<IPartitionEventHandler> PartitionEventsHandler { get; private set; }
+        public Option<PartitionAssignmentHandler> PartitionEventsHandler { get; private set; }
 
         /// <inheritdoc />
-        public IAutoSubscription WithPartitionEventsHandler(IPartitionEventHandler partitionEventHandler)
+        public IAutoSubscription WithPartitionEventsHandler(PartitionAssignmentHandler partitionAssignmentHandler)
         {
-            PartitionEventsHandler = new Option<IPartitionEventHandler>(partitionEventHandler);
+            PartitionEventsHandler = new Option<PartitionAssignmentHandler>(partitionAssignmentHandler);
             return this;
         }
     }
@@ -107,12 +107,12 @@ namespace Akka.Streams.Kafka.Settings
         }
 
         /// <inheritdoc />
-        public Option<IPartitionEventHandler> PartitionEventsHandler { get; private set; }
+        public Option<PartitionAssignmentHandler> PartitionEventsHandler { get; private set; }
 
         /// <inheritdoc />
-        public IAutoSubscription WithPartitionEventsHandler(IPartitionEventHandler partitionEventHandler)
+        public IAutoSubscription WithPartitionEventsHandler(PartitionAssignmentHandler partitionAssignmentHandler)
         {
-            PartitionEventsHandler = new Option<IPartitionEventHandler>(partitionEventHandler); 
+            PartitionEventsHandler = new Option<PartitionAssignmentHandler>(partitionAssignmentHandler); 
             return this;
         }
     }

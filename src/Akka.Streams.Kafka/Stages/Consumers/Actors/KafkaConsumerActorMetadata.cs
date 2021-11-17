@@ -31,13 +31,13 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
         /// <summary>
         /// Gets actor props
         /// </summary>
-        internal static Props GetProps<K, V>(ConsumerSettings<K, V> settings, IPartitionEventHandler handler, IStatisticsHandler statisticsHandler) =>
+        internal static Props GetProps<K, V>(ConsumerSettings<K, V> settings, PartitionAssignmentHandler handler, IStatisticsHandler statisticsHandler) =>
             Props.Create(() => new KafkaConsumerActor<K, V>(ActorRefs.Nobody, settings, handler, statisticsHandler)).WithDispatcher(settings.DispatcherId);
         
         /// <summary>
         /// Gets actor props
         /// </summary>
-        internal static Props GetProps<K, V>(IActorRef owner, ConsumerSettings<K, V> settings, IPartitionEventHandler handler, IStatisticsHandler statisticsHandler) =>
+        internal static Props GetProps<K, V>(IActorRef owner, ConsumerSettings<K, V> settings, PartitionAssignmentHandler handler, IStatisticsHandler statisticsHandler) =>
             Props.Create(() => new KafkaConsumerActor<K, V>(owner, settings, handler, statisticsHandler)).WithDispatcher(settings.DispatcherId);
 
 

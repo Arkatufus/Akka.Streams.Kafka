@@ -200,7 +200,7 @@ namespace Akka.Streams.Kafka.Tests.Integration
 
             var consumerSettings = CreateConsumerSettings<string>(group1);
 
-            var customHandler = new CustomEventsHandler();
+            var customHandler = new CustomAssignmentsHandler();
             var (control, probe) = CreateProbe(consumerSettings, Subscriptions.Topics(topic1).WithPartitionEventsHandler(customHandler));
 
             probe.Request(elementsCount);
@@ -214,7 +214,7 @@ namespace Akka.Streams.Kafka.Tests.Integration
             customHandler.StopEventsCounter.Current.Should().BeGreaterThan(0);
         }
 
-        class CustomEventsHandler : IPartitionEventHandler
+        class CustomAssignmentsHandler : PartitionAssignmentHandler
         {
             public AtomicCounter AssignmentEventsCounter = new AtomicCounter(0);
             public AtomicCounter RevokeEventsCounter = new AtomicCounter(0);

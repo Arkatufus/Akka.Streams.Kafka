@@ -59,14 +59,14 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
             var partitionsAssignedHandler = GetAsyncCallback<IEnumerable<TopicPartition>>(PartitionsAssigned);
             var partitionsRevokedHandler = GetAsyncCallback<IEnumerable<TopicPartitionOffset>>(PartitionsRevoked);
 
-            IPartitionEventHandler internalHandler = new PartitionEventHandlers.AsyncCallbacks(partitionsAssignedHandler, partitionsRevokedHandler);
+            //var internalHandler = new PartitionEventHandlers.AsyncCallbacks(partitionsAssignedHandler, partitionsRevokedHandler);
 
             // If custom partition events handler specified - add it to the chain
             var eventHandler = _subscription is IAutoSubscription autoSubscription && autoSubscription.PartitionEventsHandler.HasValue
                 ? new PartitionEventHandlers.Chain(autoSubscription.PartitionEventsHandler.Value, internalHandler)
                 : internalHandler;
 
-            IStatisticsHandler statisticsHandler = _subscription.StatisticsHandler.HasValue
+            var statisticsHandler = _subscription.StatisticsHandler.HasValue
                 ? _subscription.StatisticsHandler.Value
                 : new StatisticsHandlers.Empty();
 
@@ -103,7 +103,7 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
         /// <summary>
         /// Opportunity for subclasses to add their logic to the partition assignment callbacks.
         /// </summary>
-        protected virtual IPartitionEventHandler AddToPartitionAssignmentHandler(IPartitionEventHandler handler)
+        protected virtual PartitionAssignmentHandler AddToPartitionAssignmentHandler(PartitionAssignmentHandler handler)
         {
             return handler;
         }

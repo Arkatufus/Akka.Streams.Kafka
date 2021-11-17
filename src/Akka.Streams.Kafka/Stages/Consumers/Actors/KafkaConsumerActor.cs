@@ -35,7 +35,7 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
         /// <summary>
         /// Stores delegates for external handling of partition events
         /// </summary>
-        private readonly IPartitionEventHandler _partitionEventHandler;
+        private readonly PartitionAssignmentHandler _partitionAssignmentHandler;
         
         private readonly RestrictedConsumer<K, V> _restrictedConsumer;
         private readonly TimeSpan _warningDuration;
@@ -68,7 +68,7 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
         /// </summary>
         private IImmutableSet<IActorRef> _requestors = ImmutableHashSet<IActorRef>.Empty;
         private ICommitRefreshing<K, V> _commitRefreshing;
-        private IConsumer<K, V> _consumer;
+        private ConsumerFacade<K, V> _consumer;
         private IAdminClient _adminClient;
         private IActorRef _connectionCheckerActor;
         private readonly ILoggingAdapter _log;
@@ -96,13 +96,13 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
         /// <param name="owner">Owner actor to send critical failures to</param>
         /// <param name="settings">Consumer settings</param>
         /// <param name="statisticsHandler">Statistics handler</param>
-        /// <param name="partitionEventHandler">Partion events handler</param>
-        public KafkaConsumerActor(IActorRef owner, ConsumerSettings<K, V> settings, IPartitionEventHandler partitionEventHandler, IStatisticsHandler statisticsHandler)
+        /// <param name="partitionAssignmentHandler">Partion events handler</param>
+        public KafkaConsumerActor(IActorRef owner, ConsumerSettings<K, V> settings, PartitionAssignmentHandler partitionAssignmentHandler, IStatisticsHandler statisticsHandler)
         {
             _owner = owner;
             _settings = settings;
             _statisticsHandler = statisticsHandler;
-            _partitionEventHandler = partitionEventHandler;
+            _partitionAssignmentHandler = partitionAssignmentHandler;
             
             var restrictedConsumerTimeoutMs = Math.Round(_settings.PartitionHandlerWarning.TotalMilliseconds * 0.95);
             _restrictedConsumer = new RestrictedConsumer<K, V>(_consumer, TimeSpan.FromMilliseconds(restrictedConsumerTimeoutMs));
@@ -145,7 +145,7 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
             _commitRefreshing.AssignedPositions(partitions, _consumer, _settings.PositionTimeout);
 
             var watch = Stopwatch.StartNew();
-            _partitionEventHandler.OnAssign(partitions, _restrictedConsumer);
+            _partitionAssignmentHandler.OnAssign(partitions, _restrictedConsumer);
             watch.Stop();
             CheckDuration(watch, "onAssign");
             
@@ -156,7 +156,7 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
         private void PartitionsRevokedHandler(IImmutableSet<TopicPartitionOffset> partitions)
         {
             var watch = Stopwatch.StartNew();
-            _partitionEventHandler.OnRevoke(partitions, _restrictedConsumer);
+            _partitionAssignmentHandler.OnRevoke(partitions, _restrictedConsumer);
             watch.Stop();
             CheckDuration(watch, "onRevoke");
             
@@ -170,7 +170,7 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
             PausePartitions(currentTopicPartitions);
             
             var watch = Stopwatch.StartNew();
-            _partitionEventHandler.OnStop(currentTopicPartitions.ToImmutableHashSet(), _restrictedConsumer);
+            _partitionAssignmentHandler.OnStop(currentTopicPartitions.ToImmutableHashSet(), _restrictedConsumer);
             watch.Stop();
             CheckDuration(watch, "onStop");
         }
@@ -321,7 +321,9 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
                 if (_log.IsDebugEnabled)
                     _log.Debug($"Creating Kafka consumer with settings: {JsonConvert.SerializeObject(_settings)}");
 
-                var localSelf = Self;
+                _consumer = (ConsumerFacade<K, V>) _settings.ConsumerFactory.Create(_settings);
+                //var localSelf = Self;
+                /*
                 _consumer = _settings.CreateKafkaConsumer(
                     consumeErrorHandler: (c, e) =>
                     {
@@ -334,9 +336,9 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
                     partitionAssignedHandler: (c, tp) => localSelf.Tell(new PartitionAssigned(tp.ToImmutableHashSet())),
                     partitionRevokedHandler: (c, tp) => localSelf.Tell(new PartitionRevoked(tp.ToImmutableHashSet())),
                     statisticHandler: (c, json) => _statisticsHandler.OnStatistics(c, json));
-
+                
                 _adminClient = _consumer.Handle != null ? new DependentAdminClientBuilder(_consumer.Handle).Build() : null;
-
+                */
                 if (_settings.ConnectionCheckerSettings.Enabled)
                 {
                     _connectionCheckerActor = Context.ActorOf(ConnectionChecker.Props(_settings.ConnectionCheckerSettings));
@@ -402,6 +404,11 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
             {
                 ProcessError(ex);
             }
+        }
+
+        private RebalanceListener<K, V> CreateRebalanceHandler()
+        {
+            var partitionAssignmentHandler = new PartitionAssignmentHandler()
         }
 
         private Metadata.IResponse HandleMetadataRequest(Metadata.IRequest req)
@@ -700,6 +707,29 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
                 public bool Periodic { get; }
             }
         }
+    }
 
+    #nullable enable
+    internal sealed class RebalanceListener<K, V>: INoSerializationVerificationNeeded
+    {
+        public RebalanceListener(
+            IPartitionAssignmentHandler<K, V> partitionAssignmentHandler, 
+            Action<IConsumer<K, V>, List<TopicPartitionOffset>> onPartitionsRevoked, 
+            Action<IConsumer<K, V>, List<TopicPartition>> onPartitionsAssigned,
+            Action<IConsumer<K, V>, List<TopicPartitionOffset>> onPartitionsLost, 
+            Action postStop)
+        {
+            PartitionAssignmentHandler = partitionAssignmentHandler;
+            OnPartitionsRevoked = onPartitionsRevoked;
+            OnPartitionsAssigned = onPartitionsAssigned;
+            OnPartitionsLost = onPartitionsLost;
+            PostStop = postStop;
+        }
+
+        public IPartitionAssignmentHandler<K, V> PartitionAssignmentHandler { get; }
+        public Action<IConsumer<K, V>, List<TopicPartitionOffset>> OnPartitionsRevoked { get; }
+        public Action<IConsumer<K, V>, List<TopicPartition>> OnPartitionsAssigned { get; }
+        public Action<IConsumer<K, V>, List<TopicPartitionOffset>> OnPartitionsLost { get; }
+        public Action PostStop { get; }
     }
 }

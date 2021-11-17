@@ -69,7 +69,7 @@ namespace Akka.Streams.Kafka.Settings
                 autoCreateTopicsEnabled: config.GetBoolean("allow.auto.create.topics", true),
                 properties: properties,
                 connectionCheckerSettings: ConnectionCheckerSettings.Create(config.GetConfig(ConnectionCheckerSettings.ConfigPath)),
-                consumerFactory: null );
+                consumerFactory: ConsumerFactory<TKey, TValue>.Empty);
         }
 
         /// <summary>
@@ -152,7 +152,7 @@ namespace Akka.Streams.Kafka.Settings
         public ConnectionCheckerSettings ConnectionCheckerSettings { get; }
         
         [JsonIgnore]
-        public Func<ConsumerSettings<TKey, TValue>, IConsumer<TKey, TValue>> ConsumerFactory { get; }
+        public ConsumerFactory<TKey, TValue> ConsumerFactory { get; }
 
         [Obsolete("Please use ctor with consumerFactory parameter")]
         public ConsumerSettings(
@@ -197,7 +197,7 @@ namespace Akka.Streams.Kafka.Settings
             int bufferSize, string dispatcherId, 
             IImmutableDictionary<string, string> properties,
             ConnectionCheckerSettings connectionCheckerSettings,
-            Func<ConsumerSettings<TKey, TValue>, IConsumer<TKey, TValue>> consumerFactory)
+            ConsumerFactory<TKey, TValue> consumerFactory)
         {
             KeyDeserializer = keyDeserializer;
             ValueDeserializer = valueDeserializer;
@@ -331,7 +331,7 @@ namespace Akka.Streams.Kafka.Settings
         
         public ConsumerSettings<TKey, TValue> WithCloseTimeout(TimeSpan closeTimeout) => Copy(closeTimeout: closeTimeout);
         
-        public ConsumerSettings<TKey, TValue> WithConsumerFactory(Func<ConsumerSettings<TKey, TValue>, IConsumer<TKey, TValue>> consumerFactory) 
+        public ConsumerSettings<TKey, TValue> WithConsumerFactory(ConsumerFactory<TKey, TValue> consumerFactory) 
             => Copy(consumerFactory: consumerFactory);
         
         /// <summary>
@@ -359,7 +359,7 @@ namespace Akka.Streams.Kafka.Settings
             IImmutableDictionary<string, string> properties = null,
             ConnectionCheckerSettings connectionCheckerSettings = null,
             TimeSpan? closeTimeout = null,
-            Func<ConsumerSettings<TKey, TValue>, IConsumer<TKey, TValue>> consumerFactory = null
+            ConsumerFactory<TKey, TValue> consumerFactory = null
             ) =>
             new ConsumerSettings<TKey, TValue>(
                 keyDeserializer: keyDeserializer ?? this.KeyDeserializer,
@@ -382,50 +382,28 @@ namespace Akka.Streams.Kafka.Settings
                 connectionCheckerSettings: connectionCheckerSettings ?? this.ConnectionCheckerSettings,
                 consumerFactory: consumerFactory ?? this.ConsumerFactory);
 
-        internal RebalanceListener<TKey, TValue> RebalanceListener { get; private set; }
-        
-        /// <summary>
-        /// Creates new kafka consumer, using event handlers provided
-        /// </summary>
-        public Confluent.Kafka.IConsumer<TKey, TValue> CreateKafkaConsumer(Action<IConsumer<TKey, TValue>, Error> consumeErrorHandler = null,
-                                                                           Action<IConsumer<TKey, TValue>, List<TopicPartition>> partitionAssignedHandler = null,
-                                                                           Action<IConsumer<TKey, TValue>, List<TopicPartitionOffset>> partitionRevokedHandler = null,
-                                                                           Action<IConsumer<TKey, TValue>, string> statisticHandler = null)
-        {
-            RebalanceListener = new RebalanceListener<TKey, TValue>(
-                onPartitionAssigned: partitionAssignedHandler,
-                onPartitionRevoked: partitionRevokedHandler);
-
-            if (this.ConsumerFactory != null)
-                return this.ConsumerFactory(this);
-            
-            return new ConsumerBuilder<TKey, TValue>(this.Properties)
-                .SetKeyDeserializer(this.KeyDeserializer)
-                .SetValueDeserializer(this.ValueDeserializer)
-                .SetErrorHandler((c, e) => consumeErrorHandler?.Invoke(c, e))
-                .SetPartitionsAssignedHandler((c, partitions) => partitionAssignedHandler?.Invoke(c, partitions))
-                .SetPartitionsRevokedHandler((c, partitions) => partitionRevokedHandler?.Invoke(c, partitions))
-                .SetStatisticsHandler((c, json) => statisticHandler?.Invoke(c, json))
-                .Build();
-        }
-
-        public static ConsumerBuilder<TKey, TValue> CreateKafkaConsumerBuilder(ConsumerSettings<TKey, TValue> settings)
-        {
-            return new ConsumerBuilder<TKey, TValue>(settings.Properties)
-                .SetKeyDeserializer(settings.KeyDeserializer)
-                .SetValueDeserializer(settings.ValueDeserializer);
-        }
-    }
-
-    internal sealed class RebalanceListener<TKey, TValue>
-    {
-        public RebalanceListener(Action<IConsumer<TKey, TValue>, List<TopicPartition>> onPartitionAssigned, Action<IConsumer<TKey, TValue>, List<TopicPartitionOffset>> onPartitionRevoked)
-        {
-            OnPartitionAssigned = onPartitionAssigned;
-            OnPartitionRevoked = onPartitionRevoked;
-        }
-
-        public Action<IConsumer<TKey, TValue>, List<TopicPartition>> OnPartitionAssigned { get; } 
-        public Action<IConsumer<TKey, TValue>, List<TopicPartitionOffset>> OnPartitionRevoked { get; }
+/*
+/// <summary>
+/// Creates new kafka consumer, using event handlers provided
+/// </summary>
+public IConsumer<TKey, TValue> CreateKafkaConsumer(
+    Action<IConsumer<TKey, TValue>, Error> consumeErrorHandler = null,
+    Action<IConsumer<TKey, TValue>, List<TopicPartition>> partitionAssignedHandler = null,
+    Action<IConsumer<TKey, TValue>, List<TopicPartitionOffset>> partitionRevokedHandler = null,
+    Action<IConsumer<TKey, TValue>, string> statisticHandler = null)
+{
+    if (this.ConsumerFactory != null)
+        return this.ConsumerFactory(this);
+    
+    return new ConsumerBuilder<TKey, TValue>(this.Properties)
+        .SetKeyDeserializer(this.KeyDeserializer)
+        .SetValueDeserializer(this.ValueDeserializer)
+        .SetErrorHandler((c, e) => consumeErrorHandler?.Invoke(c, e))
+        .SetPartitionsAssignedHandler((c, partitions) => partitionAssignedHandler?.Invoke(c, partitions))
+        .SetPartitionsRevokedHandler((c, partitions) => partitionRevokedHandler?.Invoke(c, partitions))
+        .SetStatisticsHandler((c, json) => statisticHandler?.Invoke(c, json))
+        .Build();
+}
+*/
     }
 }

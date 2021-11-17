@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Akka.Actor;
 using Akka.Streams.Kafka.Settings;
+using Akka.Streams.Kafka.Stages.Consumers.Actors;
 using Confluent.Kafka;
 
 namespace Akka.Streams.Kafka.Internal
@@ -24,24 +25,65 @@ namespace Akka.Streams.Kafka.Internal
         }
     }
 
-    public interface IPartitionAssignmentHandler<K, V>
+    public interface IConsumerRebalanceListener
     {
-        public void OnRevoke(IConsumer<K, V> consumer, List<TopicPartitionOffset> revokedTps);
-        public void OnAssign(IConsumer<K, V> consumer, List<TopicPartition> assignedTps);
-        public void OnLost(IConsumer<K, V> consumer, List<TopicPartitionOffset> lostTps);
-        public void OnStop(IConsumer<K, V> consumer, List<TopicPartition> currentTps);
+        public void OnPartitionsRevoked(List<TopicPartitionOffset> partitions);
+        public void OnPartitionsAssigned(List<TopicPartition> partitions);
+        public void OnPartitionsLost(List<TopicPartitionOffset> partitions);
     }
 
-    public class ConsumerFacade<K, V> : IConsumer<K, V>
+    public sealed class EmptyConsumerRebalanceListener : IConsumerRebalanceListener
+    {
+        public static IConsumerRebalanceListener Instance = new EmptyConsumerRebalanceListener();
+        
+        private EmptyConsumerRebalanceListener(){ }
+        public void OnPartitionsRevoked(List<TopicPartitionOffset> partitions) { }
+        public void OnPartitionsAssigned(List<TopicPartition> partitions) { }
+        public void OnPartitionsLost(List<TopicPartitionOffset> partitions) { }
+    }
+    
+    internal class ConsumerFacade<K, V> : IConsumer<K, V>
     {
         private readonly ConsumerSettings<K, V> _settings;
-        private IPartitionAssignmentHandler<K, V> _callbacks;
-        private IConsumer<K, V> _internalConsumer = null;
+        private RebalanceListener<K, V> _callbacks;
+        private IConsumer<K, V> _internalConsumer;
 
-        public ConsumerFacade(ConsumerSettings<K, V> settings)
+        public IConsumerRebalanceListener ConsumerRebalanceListener { get; }
+        
+        public ConsumerFacade(
+            ConsumerSettings<K, V> settings,
+            IConsumerRebalanceListener consumerRebalanceListener)
         {
             _settings = settings;
+            ConsumerRebalanceListener = consumerRebalanceListener;
         }
+        
+        internal void Subscribe(IEnumerable<string> topics, RebalanceListener<K, V> callbacks)
+        {
+            CreateNewConsumer(callbacks);
+            _internalConsumer.Subscribe(topics);
+        }
+
+        internal void Subscribe(string topic, RebalanceListener<K, V> callbacks)
+        {
+            CreateNewConsumer(callbacks);
+            _internalConsumer.Subscribe(topic);
+        }
+
+        private void CreateNewConsumer(RebalanceListener<K, V> callbacks)
+        {
+            _internalConsumer?.Dispose();
+            _callbacks = callbacks;
+            var builder = new ConsumerBuilder<K, V>(_settings.Properties)
+                .SetKeyDeserializer(_settings.KeyDeserializer)
+                .SetValueDeserializer(_settings.ValueDeserializer);
+            builder.SetPartitionsLostHandler(callbacks.OnPartitionsLost);
+            builder.SetPartitionsAssignedHandler(callbacks.OnPartitionsAssigned);
+            builder.SetPartitionsRevokedHandler(callbacks.OnPartitionsRevoked);
+            _internalConsumer = builder.Build();
+        }
+
+        #region Facade
 
         public void Dispose() => _internalConsumer?.Dispose();
 
@@ -88,19 +130,16 @@ namespace Akka.Streams.Kafka.Internal
         public List<TopicPartitionOffset> Commit() 
             => _internalConsumer?.Commit() ?? throw new ConsumerFacade.NotInitialized();
 
-        public void Subscribe(IEnumerable<string> topics, IPartitionAssignmentHandler<K, V> callbacks)
+        void IConsumer<K, V>.Subscribe(IEnumerable<string> topics) => _internalConsumer.Subscribe(topics);
+
+        void IConsumer<K, V>.Subscribe(string topic) => _internalConsumer.Subscribe(topic);
+
+        public void Unsubscribe()
         {
-            _internalConsumer?.Dispose();
-            _callbacks = callbacks;
-            var builder = ConsumerSettings<K, V>.CreateKafkaConsumerBuilder(_settings);
-            
+            if(_internalConsumer == null)
+                throw new ConsumerFacade.NotInitialized();
+            _internalConsumer.Unsubscribe();
         }
-        
-        void IConsumer<K, V>.Subscribe(IEnumerable<string> topics) => throw new NotImplementedException();
-
-        void IConsumer<K, V>.Subscribe(string topic) => throw new NotImplementedException();
-
-        void IConsumer<K, V>.Unsubscribe() => throw new NotImplementedException();
 
         public void Assign(TopicPartition partition)
         {
@@ -214,5 +253,6 @@ namespace Akka.Streams.Kafka.Internal
             _internalConsumer.Close();
         }
 
+        #endregion
     }
 }
