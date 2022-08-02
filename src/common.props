@@ -23,7 +23,7 @@
     <AkkaVersion>1.4.33</AkkaVersion>
     <KafkaVersion>1.8.2</KafkaVersion>
     <!-- Unit test Nuget package versions -->
-    <XunitVersion>2.4.1</XunitVersion>
+    <XunitVersion>2.4.2</XunitVersion>
     <NBenchVersion>1.2.2</NBenchVersion>
     <TestSdkVersion>17.1.0</TestSdkVersion>
   </PropertyGroup>
