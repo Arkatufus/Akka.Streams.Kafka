@@ -500,19 +500,13 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
                 PausePartitions(pauseThese);
                 ResumePartitions(resumeThese);
 
-                using (var cts = new CancellationTokenSource(_settings.PollTimeout))
+                try
                 {
-                    var (polled, exception) = PollKafka(cts.Token);
-                    try
-                    {
-                        ProcessResult(partitionsToFetch, polled);
-                    }
-                    catch (Exception e)
-                    {
-                        ProcessExceptions(e);
-                    }
-
-                    ProcessExceptions(exception);
+                    ProcessResult(partitionsToFetch, _consumer.Consume(_settings.PollTimeout));
+                }
+                catch (Exception e)
+                {
+                    ProcessExceptions(e);
                 }
             }
             
@@ -541,72 +535,38 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Actors
             Context.Stop(Self);
         }
 
-        private (List<ConsumeResult<K, V>>, Exception) PollKafka(CancellationToken token)
+        private void ProcessResult(IImmutableSet<TopicPartition> partitionsToFetch, ConsumeResult<K,V> consumedMessage)
         {
-            ConsumeResult<K, V> consumed = null;
-            var i = 10; // 10 poll attempts
-            var timeout = Math.Max((int) _pollTimeout.TotalMilliseconds / i, 1);
-            var polled = new List<ConsumeResult<K, V>>();
-            do
-            {
-                try
-                {
-                    // this would return immediately if there are messages waiting inside the client queue buffer
-                    consumed = _consumer.Consume(timeout);
-                }
-                catch (Exception e)
-                {
-                    return (polled, e);
-                }
-                if (consumed != null)
-                    polled.Add(consumed);
-                i--;
-            } while (i > 0 && consumed != null && !token.IsCancellationRequested);
-
-            return (polled, null);
-        }
-
-        private void ProcessResult(IImmutableSet<TopicPartition> partitionsToFetch, List<ConsumeResult<K,V>> rawResult)
-        {
-            if(_log.IsDebugEnabled)
-                _log.Debug("Processing poll result with {0} records", rawResult.Count);
-            if(rawResult.IsEmpty())
+            if(consumedMessage is null)
                 return;
 
-            var fetchedTps = rawResult.Select(m => m.TopicPartition).ToImmutableSet();
-            if (!fetchedTps.Except(partitionsToFetch).IsEmpty())
+            if(_log.IsDebugEnabled)
+                _log.Debug("Processing poll result");
+
+            var fetchedTopicPartition  = consumedMessage.TopicPartition;
+            if(!partitionsToFetch.Contains(fetchedTopicPartition))
                 throw new ArgumentException(
-                    $"Unexpected records polled. Expected: [{string.Join(", ", partitionsToFetch.Select(p => p.ToString()))}], " +
-                    $"result: [{string.Join(", ", fetchedTps.Select(p => p.ToString()))}], " +
-                    $"consumer assignment: [{string.Join(", ", _consumer.Assignment.Select(p => p.ToString()))}]");
+                    $"Unexpected records polled. Expected one of: [{string.Join(", ", partitionsToFetch.Select(p => p.ToString()))}], " +
+                    $"but consumed result is {consumedMessage.ToJson()}, " +
+                    $"consumer assignment: {_consumer.Assignment.ToJson()}");
                     
-            //send messages to actors
             foreach (var (stageActorRef, request) in _requests.ToTuples())
             {
-                var messages = new List<ConsumeResult<K, V>>();
-                foreach (var message in rawResult)
+                if (_seekedOffset.TryGetValue(fetchedTopicPartition, out var seekedTpo))
                 {
-                    var currentTp = message.TopicPartition;
-                    
-                    if (_seekedOffset.TryGetValue(currentTp, out var seekedTpo))
-                    {
-                        if (message.Offset != seekedTpo.Offset)
-                            throw new Exception("Seek failed, received message offset is greater than seek offset");
-                        _seekedOffset = _seekedOffset.Remove(currentTp);
-                    }
-                    
-                    // If requestor is interested in consumed topic, send him consumed result
-                    if (request.Topics.Contains(currentTp))
-                    {
-                        messages.Add(message);
-                    }
+                    if (consumedMessage.Offset != seekedTpo.Offset)
+                        throw new Exception("Seek failed, received message offset is greater than seek offset");
+                    _seekedOffset = _seekedOffset.Remove(fetchedTopicPartition);
                 }
-                if(!messages.IsEmpty())
+                    
+                // If requestor is interested in consumed topic, send him consumed result
+                if (request.Topics.Contains(consumedMessage.TopicPartition))
                 {
-                    stageActorRef.Tell(new KafkaConsumerActorMetadata.Internal.Messages<K, V>(request.RequestId, messages.ToImmutableList()));
+                    var messages = ImmutableList<ConsumeResult<K, V>>.Empty.Add(consumedMessage);
+                    stageActorRef.Tell(new KafkaConsumerActorMetadata.Internal.Messages<K, V>(request.RequestId, messages));
                     _requests = _requests.Remove(stageActorRef);
                 }
-            }                    
+            }
         }
         
         private void ProcessError(Exception error)
