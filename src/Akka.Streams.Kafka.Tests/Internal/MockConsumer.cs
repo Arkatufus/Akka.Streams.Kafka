@@ -40,6 +40,9 @@ namespace Akka.Streams.Kafka.Tests.Internal
 
             A.CallTo(() => Mock.Consume(A<CancellationToken>.Ignored))
                 .ReturnsLazily(Consume);
+            
+            A.CallTo(() => Mock.Consume(A<TimeSpan>.Ignored))
+                .ReturnsLazily(Consume);
 
             A.CallTo(() => Mock.Commit(A<IEnumerable<TopicPartitionOffset>>._))
                 .Invokes(tpos =>
