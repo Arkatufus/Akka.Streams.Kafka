@@ -2,28 +2,31 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <!-- Nuget package versions -->
-    <AkkaVersion>1.5.37</AkkaVersion>
+    <AkkaVersion>1.5.38</AkkaVersion>
+    <AkkaHostingVersion>1.5.38</AkkaHostingVersion>
     <!-- Unit test Nuget package versions -->
     <NBenchVersion>1.2.2</NBenchVersion>
     <TestSdkVersion>17.4.1</TestSdkVersion>
+    <MsExtVersion>6.0.1</MsExtVersion>
   </PropertyGroup>
-
   <!-- App dependencies -->
   <ItemGroup>
     <PackageVersion Include="Akka.Streams" Version="$(AkkaVersion)" />
     <PackageVersion Include="Confluent.Kafka" Version="2.8.0" />
-    <PackageVersion Include="Testcontainers.Kafka" Version="4.1.0" />
   </ItemGroup>
-
   <!-- Test dependencies -->
   <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="$(MsExtVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="$(MsExtVersion)" />
+    <PackageVersion Include="Testcontainers.Kafka" Version="4.3.0" />
     <PackageVersion Include="EntityFramework" Version="6.4.4" />
-    <PackageVersion Include="Akka.Hosting.TestKit" Version="$(AkkaVersion)" />
+    <PackageVersion Include="Akka.Hosting" Version="$(AkkaHostingVersion)" />
+    <PackageVersion Include="Akka.Hosting.TestKit" Version="$(AkkaHostingVersion)" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
     <PackageVersion Include="xunit" Version="2.8.1" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.1" />
     <PackageVersion Include="Akka.TestKit.Xunit2" Version="$(AkkaVersion)" />
-    <PackageVersion Include="Akka.Streams.TestKit" Version="$(AkkaVersion)" />    
+    <PackageVersion Include="Akka.Streams.TestKit" Version="$(AkkaVersion)" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.13.12" />
     <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
     <PackageVersion Include="NDesk.Options.Core" Version="1.2.5" />
@@ -31,8 +34,9 @@
     <PackageVersion Include="Universe.CpuUsage" Version="2.2.497.598" />
     <PackageVersion Include="FakeItEasy" Version="7.4.0" />
     <PackageVersion Include="FluentAssertions" Version="6.12.0" />
+    <PackageVersion Include="Google.Protobuf" Version="3.29.3" />
+    <PackageVersion Include="Grpc.Tools" Version="2.69.0" />
   </ItemGroup>
-
   <!-- SourceLink support for all Akka.NET projects -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />

@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+option csharp_namespace = "Issue415.Reproduction.Proto";
+
+import "google/protobuf/timestamp.proto";
+
+message ModelProto
+{
+  int32 sequence = 1;
+  string data = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
