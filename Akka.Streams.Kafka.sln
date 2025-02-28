@@ -48,6 +48,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build-system", "build-syste
 		build-system\windows-release.yaml = build-system\windows-release.yaml
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{5CFB94CF-A330-45E7-9FAA-5DBCECEA9453}"
+	ProjectSection(SolutionItems) = preProject
+		tests\Model.cs = tests\Model.cs
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Issue415.Reproduction", "src\tests\Issue415.Reproduction\Issue415.Reproduction.csproj", "{A00FA0B7-47EB-4821-A79A-5493E6F31B9B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -90,6 +97,10 @@ Global
 		{EB6C9C63-DA66-44E6-938B-5CA0D3F4312E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EB6C9C63-DA66-44E6-938B-5CA0D3F4312E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EB6C9C63-DA66-44E6-938B-5CA0D3F4312E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A00FA0B7-47EB-4821-A79A-5493E6F31B9B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A00FA0B7-47EB-4821-A79A-5493E6F31B9B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A00FA0B7-47EB-4821-A79A-5493E6F31B9B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A00FA0B7-47EB-4821-A79A-5493E6F31B9B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -101,6 +112,7 @@ Global
 		{9B4B5FBF-A46C-490E-8E19-72F577A1C31E} = {DBBF6380-3734-49B5-8BF6-74A7C33DFA55}
 		{EB6C9C63-DA66-44E6-938B-5CA0D3F4312E} = {DBBF6380-3734-49B5-8BF6-74A7C33DFA55}
 		{CD594973-740C-425C-A2EF-4B764533A77A} = {568F6963-99B1-4E1C-8394-52E4064D6F32}
+		{A00FA0B7-47EB-4821-A79A-5493E6F31B9B} = {5CFB94CF-A330-45E7-9FAA-5DBCECEA9453}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4B399516-A19F-4B0E-9AA9-CD6197619BE0}
