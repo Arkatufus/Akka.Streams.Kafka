@@ -157,15 +157,31 @@ public class KafkaSourceDecider
 
 public class CustomPartitionEventHandler(ILoggingAdapter log) : IPartitionEventHandler
 {
-    public void OnRevoke(IImmutableSet<TopicPartitionOffset> revokedTopicPartitions, IRestrictedConsumer consumer) 
-        => log.Info("Partitions revoked: {0}", string.Join(", ", revokedTopicPartitions));
+    public void OnRevoke(IImmutableSet<TopicPartitionOffset> revokedTopicPartitions, IRestrictedConsumer consumer)
+    {
+        if(revokedTopicPartitions.Count == 0) 
+            return;
+        log.Info("Partitions revoked: {0}", string.Join(", ", revokedTopicPartitions));
+    }
 
     public void OnLost(IImmutableSet<TopicPartitionOffset> revokedTopicPartitions, IRestrictedConsumer consumer)
-        => log.Info("Partitions lost: {0}", string.Join(", ", revokedTopicPartitions));
+    {
+        if(revokedTopicPartitions.Count == 0) 
+            return;
+        log.Info("Partitions lost: {0}", string.Join(", ", revokedTopicPartitions));
+    }
 
-    public void OnAssign(IImmutableSet<TopicPartition> assignedTopicPartitions, IRestrictedConsumer consumer) 
-        => log.Info("Partitions assigned: {0}", string.Join(", ", assignedTopicPartitions));
+    public void OnAssign(IImmutableSet<TopicPartition> assignedTopicPartitions, IRestrictedConsumer consumer)
+    {
+        if(assignedTopicPartitions.Count == 0) 
+            return;
+        log.Info("Partitions assigned: {0}", string.Join(", ", assignedTopicPartitions));
+    }
 
-    public void OnStop(IImmutableSet<TopicPartition> topicPartitions, IRestrictedConsumer consumer) 
-        => log.Info("Partitions stopped: {0}", string.Join(", ", topicPartitions));
+    public void OnStop(IImmutableSet<TopicPartition> topicPartitions, IRestrictedConsumer consumer)
+    {
+        if(topicPartitions.Count == 0) 
+            return;
+        log.Info("Partitions stopped: {0}", string.Join(", ", topicPartitions));
+    }
 }
