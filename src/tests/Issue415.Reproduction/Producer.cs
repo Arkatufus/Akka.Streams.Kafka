@@ -19,13 +19,21 @@ namespace Issue415.Reproduction;
 
 public static class Producer
 {
-    public static Task Create(string[] args, KafkaContainer fixture, int topicCount, TimeSpan produceDelay, string? topicPostfix = null)
+    public static async Task Create(
+        string[] args,
+        KafkaContainer fixture,
+        int topicCount,
+        TimeSpan produceDelay,
+        CancellationTokenSource cts,
+        string? topicPostfix = null)
     {
-        return Host.CreateDefaultBuilder(args)
+        topicPostfix ??= string.Empty;
+        
+        await Host.CreateDefaultBuilder(args)
             .ConfigureLogging(logger =>
             {
-                logger.ClearProviders();
-                logger.AddConsole();
+                //logger.ClearProviders();
+                //logger.AddConsole();
                 logger.Services.Configure<LoggerFilterOptions>(opt =>
                 {
                     opt.MinLevel = LogLevel.Information;
@@ -68,8 +76,8 @@ public static class Producer
                                     .Select(topicIndex =>
                                         {
                                             var topic = string.IsNullOrWhiteSpace(topicPostfix)
-                                                ? $"unexpected-records-{(topicIndex * 100).ToString()}"
-                                                : $"unexpected-records-{(topicIndex * 100).ToString()}-{topicPostfix}";
+                                                ? $"topic-{(topicIndex * 100).ToString()}"
+                                                : $"topic-{(topicIndex * 100).ToString()}-{topicPostfix}";
                                             var logger = Logging.GetLogger(system, $"{topic}-producer");
                                             return CreateProducerAsync(
                                                 topic: topic,
@@ -87,6 +95,8 @@ public static class Producer
             })
             .UseConsoleLifetime()
             .RunConsoleAsync();
+        
+        await cts.CancelAsync();
     }
 
     private static async Task CreateProducerAsync(

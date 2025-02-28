@@ -13,13 +13,15 @@ namespace Issue415.Reproduction;
 
 public static class Consumer
 {
+    private static int _counter;
     public static IHost Create(string[] args, KafkaContainer fixture, int groupId, int topicCount, int timeoutMs, string? topicPostfix = null)
     {
+        _counter++;
         return Host.CreateDefaultBuilder(args)
             .ConfigureLogging(logger =>
             {
-                logger.ClearProviders();
-                logger.AddConsole();
+                //logger.ClearProviders();
+                //logger.AddConsole();
                 logger.Services.Configure<LoggerFilterOptions>(opt =>
                 {
                     opt.MinLevel = LogLevel.Information;
@@ -28,7 +30,7 @@ public static class Consumer
             .ConfigureServices((ctx, services) =>
             {
                 services
-                    .AddAkka("ProducerSys", (builder, provider) =>
+                    .AddAkka($"ConsumerSys-{_counter}", (builder, provider) =>
                     {
                         builder
                             .ConfigureLoggers(logger =>
@@ -57,8 +59,8 @@ public static class Consumer
                                 foreach (var topicIndex in Enumerable.Range(1, topicCount))
                                 {
                                     var topic = string.IsNullOrWhiteSpace(topicPostfix)
-                                        ? $"unexpected-records-{(topicIndex * 100).ToString()}"
-                                        : $"unexpected-records-{(topicIndex * 100).ToString()}-{topicPostfix}";
+                                        ? $"topic-{(topicIndex * 100).ToString()}"
+                                        : $"topic-{(topicIndex * 100).ToString()}-{topicPostfix}";
                                     CreateConsumer(system, topic, consumerSettings);
                                 }
                             });

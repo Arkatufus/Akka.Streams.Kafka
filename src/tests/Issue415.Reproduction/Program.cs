@@ -21,8 +21,10 @@ Console.WriteLine("Kafka started");
 var consumers = new IHost?[3];
 try
 {
+    using var cts = new CancellationTokenSource();
+    
     // Start producer
-    var producerTask = Producer.Create(args, container, 3, TimeSpan.FromMilliseconds(200));
+    var producerTask = Producer.Create(args, container, 3, TimeSpan.FromMilliseconds(200), cts);
 
     consumers[0] = Consumer.Create(args, container, 1, 3, 6000);
     consumers[1] = Consumer.Create(args, container, 1, 3, 6000);
@@ -32,10 +34,12 @@ try
     await consumers[1]!.StartAsync();
     await consumers[2]!.StartAsync();
     
-    var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+    var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
     
-    while (await timer.WaitForNextTickAsync())
+    while (await timer.WaitForNextTickAsync(cts.Token))
     {
+        if (cts.IsCancellationRequested)
+            break;
         if (consumers[2] is not null)
         {
             await consumers[2]!.StopAsync();
