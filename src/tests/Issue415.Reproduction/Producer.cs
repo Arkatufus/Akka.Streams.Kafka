@@ -96,7 +96,7 @@ public static class Producer
             .UseConsoleLifetime()
             .RunConsoleAsync();
         
-        await cts.CancelAsync();
+        cts.Cancel();
     }
 
     private static async Task CreateProducerAsync(

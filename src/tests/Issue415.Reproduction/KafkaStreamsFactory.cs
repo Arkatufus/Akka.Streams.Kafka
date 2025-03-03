@@ -7,6 +7,7 @@ using Akka.Streams.Kafka.Dsl;
 using Akka.Streams.Kafka.Helpers;
 using Akka.Streams.Kafka.Messages;
 using Akka.Streams.Kafka.Settings;
+using Akka.Util;
 using Confluent.Kafka;
 using Directive = Akka.Streams.Supervision.Directive;
 
@@ -89,10 +90,12 @@ public class KafkaSourceDecider
     private const Directive Resume = Directive.Resume;
     private readonly ILoggingAdapter _logger;
     private readonly bool _autoCreateTopics;
+    private readonly AtomicReference<Exception> _trigger;
 
-    public KafkaSourceDecider(ILoggingAdapter logger, bool autoCreateTopics = false)
+    public KafkaSourceDecider(ILoggingAdapter logger, AtomicReference<Exception> trigger, bool autoCreateTopics = false)
     {
         _logger = logger;
+        _trigger = trigger;
         _autoCreateTopics = autoCreateTopics;
     }
     
@@ -141,16 +144,9 @@ public class KafkaSourceDecider
                 return Resume;
             
             default:
-                _logger.Error(exception, "Exception in Kafka Source.");
-
-                var decision = exception switch
-                {
-                    ArgumentException when exception.Message.StartsWith("Unexpected records polled") => Resume,
-                    _ => Stop
-                };
-
-                _logger.Info(exception, "Returning decision: {0} from decider.", decision);
-                return decision;
+                _trigger.CompareAndSet(null!, exception);
+                _logger.Error(exception, "Exception in Kafka Source. Returning decision: {0} from decider.", Stop);
+                return Stop;
         }
     }
 }
