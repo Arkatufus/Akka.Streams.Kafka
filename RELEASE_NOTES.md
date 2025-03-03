@@ -1,3 +1,7 @@
+#### 1.5.38 February 6th 2025 ####
+
+**Nightly placeholder**
+
 #### 1.5.37 February 6th 2025 ####
 
 * [Upgraded to Akka.NET v1.5.37](https://github.com/akkadotnet/akka.net/releases/tag/1.5.37)
