@@ -26,7 +26,7 @@ namespace Akka.Streams.Kafka.Benchmark
     public abstract class BenchmarkBase
     {
         public readonly DockerSupport Docker;
-        public ActorSystem ActorSystem { get; private set; }
+        public ActorSystem ActorSystem { get; private set; } = null!;
         
         protected BenchmarkBase()
         {
@@ -60,32 +60,34 @@ namespace Akka.Streams.Kafka.Benchmark
 
         #region Akka methods
 
-        private string _uuid;
+        private string _uuid = null!;
         //public ActorSystem ProducerSystem { get; private set; }
-        public ActorSystem ConsumerSystem { get; private set; }
-        public string KafkaTopic { get; private set; }
-        public string KafkaGroup { get; private set; }
+        public ActorSystem ConsumerSystem { get; private set; } = null!;
+        public string KafkaTopic { get; private set; } = null!;
+        public string KafkaGroup { get; private set; } = null!;
 
-        private async Task SetupActorSystemsAsync()
+        private Task SetupActorSystemsAsync()
         {
             Console.WriteLine("Starting Akka ActorSystems");
             
             //var config = ConfigurationFactory.ParseString("akka.loglevel = DEBUG");
-            var config = ConfigurationFactory.ParseString(@"
-          akka {
-            log-config-on-start = off
-            stdout-loglevel = INFO
-            loglevel = ERROR
-            actor {
-              debug {
-                  receive = on
-                  autoreceive = on
-                  lifecycle = on
-                  event-stream = on
-                  unhandled = on
-              }
-            }          
-          }")
+            var config = ConfigurationFactory.ParseString("""
+                                                          
+                                                                    akka {
+                                                                      log-config-on-start = off
+                                                                      stdout-loglevel = INFO
+                                                                      loglevel = ERROR
+                                                                      actor {
+                                                                        debug {
+                                                                            receive = on
+                                                                            autoreceive = on
+                                                                            lifecycle = on
+                                                                            event-stream = on
+                                                                            unhandled = on
+                                                                        }
+                                                                      }          
+                                                                    }
+                                                          """)
                 .WithFallback(KafkaExtensions.DefaultSettings);
             
             //ProducerSystem = ActorSystem.Create("akka-kafka-producer", config);
@@ -106,6 +108,8 @@ namespace Akka.Streams.Kafka.Benchmark
                 
             Console.WriteLine("ActorSystems created");
             */
+            
+            return Task.CompletedTask;
         }
 
         private async Task TeardownActorSystemsAsync()
@@ -118,7 +122,11 @@ namespace Akka.Streams.Kafka.Benchmark
             try
             {
                 await ConsumerSystem.Terminate();
-            } catch {}
+            }
+            catch
+            {
+                // ignored
+            }
         }
 
         #endregion

@@ -90,9 +90,9 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
             base.PostStop();
         }
 
-        protected override void PerformShutdown(Exception ex)
+        protected override void PerformShutdown(Exception? ex)
         {
-            if (ex is { } and not SubscriptionWithCancelException.NonFailureCancellation)
+            if (ex is not null and not SubscriptionWithCancelException.NonFailureCancellation)
                 Log.Info(ex, $"{nameof(SingleSourceStageLogic<K, V, TMessage>)} was shutdown due to exception");
             
             SetKeepGoing(true);
@@ -137,20 +137,20 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
         private void PartitionsAssigned(IEnumerable<TopicPartition> partitions)
         {
             TopicPartitions = TopicPartitions.Union(partitions);
-            Log.Debug($"Partitions were assigned: {string.Join(", ", TopicPartitions)}");
+            Log.Debug("[{0}] Partitions were assigned: {1}", ConsumerActor.Path.Name, string.Join(", ", partitions));
             RequestMessages();
         }
         
         private void PartitionsRevoked(IEnumerable<TopicPartitionOffset> partitions)
         {
             TopicPartitions = TopicPartitions.Except(partitions.Select(tpo => tpo.TopicPartition));
-            Log.Debug("Partitions were revoked");
+            Log.Debug("[{0}] Partitions were revoked: {1}", ConsumerActor.Path.Name, string.Join(", ", partitions));
         }
         
         private void PartitionsLost(IEnumerable<TopicPartitionOffset> partitions)
         {
             TopicPartitions = TopicPartitions.Except(partitions.Select(tpo => tpo.TopicPartition));
-            Log.Debug("Partitions were lost");
+            Log.Debug("[{0}] Partitions were lost: {1}", ConsumerActor.Path.Name, string.Join(", ", partitions));
         }
     }
 }

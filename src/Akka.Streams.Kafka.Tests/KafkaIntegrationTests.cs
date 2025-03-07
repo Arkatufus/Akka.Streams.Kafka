@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Configuration;
@@ -24,13 +25,26 @@ namespace Akka.Streams.Kafka.Tests
         public KafkaFixture Fixture { get; }
         protected IMaterializer Materializer { get; }
 
-        public KafkaIntegrationTests(string actorSystemName, ITestOutputHelper output, KafkaFixture fixture) 
+        public KafkaIntegrationTests(string? actorSystemName, ITestOutputHelper output, KafkaFixture fixture) 
             : base(Default(), actorSystemName, output)
         {
             Fixture = fixture;
             Materializer = Sys.Materializer();
             
-            Sys.Log.Info("Starting test: " + output.GetCurrentTestName());
+            Sys.Log.Info("Starting test: " + GetCurrentTestName(output));
+        }
+
+        private static string GetCurrentTestName(ITestOutputHelper output)
+        {
+            var type = output.GetType();
+            var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (testMember != null)
+            {
+                var test = (ITest)testMember.GetValue(output)!;
+                return test.DisplayName;
+            }
+            
+            return "Unknown test";
         }
         
         private string Uuid { get; } = Guid.NewGuid().ToString();
@@ -118,7 +132,7 @@ namespace Akka.Streams.Kafka.Tests
             return task.Result;
         }
 
-        protected async Task GivenInitializedTopic(string topic)
+        protected async Task GivenInitializedTopicAsync(string topic, int partitions = KafkaFixture.KafkaPartitions)
         {
             var builder = new AdminClientBuilder(new AdminClientConfig
             {
@@ -126,37 +140,27 @@ namespace Akka.Streams.Kafka.Tests
             });
             using (var client = builder.Build())
             {
-                await client.CreateTopicsAsync(new[] {new TopicSpecification
+                await client.CreateTopicsAsync([
+                    new TopicSpecification
                 {
                     Name = topic,
-                    NumPartitions = KafkaFixture.KafkaPartitions,
+                    NumPartitions = partitions,
                     ReplicationFactor = KafkaFixture.KafkaReplicationFactor
-                }});
+                }
+                ]);
             }
         }
         
-        protected async Task GivenInitializedTopic(TopicPartition topicPartition)
+        protected Task GivenInitializedTopicAsync(TopicPartition topicPartition, int partitions = KafkaFixture.KafkaPartitions)
         {
-            var builder = new AdminClientBuilder(new AdminClientConfig
-            {
-                BootstrapServers = Fixture.KafkaServer
-            });
-            using (var client = builder.Build())
-            {
-                await client.CreateTopicsAsync(new[] {new TopicSpecification
-                {
-                    Name = topicPartition.Topic,
-                    NumPartitions = KafkaFixture.KafkaPartitions,
-                    ReplicationFactor = KafkaFixture.KafkaReplicationFactor
-                }});
-            }
+            return GivenInitializedTopicAsync(topicPartition.Topic, partitions);
         }
         
         protected (IControl, TestSubscriber.Probe<TValue>) CreateExternalPlainSourceProbe<TValue>(IActorRef consumer, IManualSubscription sub)
         {
             return KafkaConsumer
                 .PlainExternalSource<Null, TValue>(consumer, sub, true)
-                .Select(c => c.Value)
+                .Select(c => c.Message.Value)
                 .ToMaterialized(this.SinkProbe<TValue>(), Keep.Both)
                 .Run(Materializer);
         }

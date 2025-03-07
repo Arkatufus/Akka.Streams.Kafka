@@ -86,9 +86,8 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
         /// </summary>
         private IImmutableSet<TopicPartition> _partitionsToRevoke = ImmutableHashSet<TopicPartition>.Empty;
 
-
-        protected StageActor SourceActor { get; private set; }
-        public IActorRef ConsumerActor { get; private set; }
+        protected StageActor SourceActor { get; private set; } = null!;
+        public IActorRef ConsumerActor { get; private set; } = null!;
 
         public PromiseControl<(TopicPartition, Source<TMessage, NotUsed>)> Control { get; }
 
@@ -108,7 +107,7 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
             _getOffsetsOnAssign = getOffsetsOnAssign;
             _onRevoke = onRevoke;
 
-            var supervisionStrategy = attributes.GetAttribute<ActorAttributes.SupervisionStrategy>(null);
+            var supervisionStrategy = attributes.GetAttribute<ActorAttributes.SupervisionStrategy>();
             _decider = supervisionStrategy != null ? supervisionStrategy.Decider : Deciders.StoppingDecider;
 
             Control = new SubSourcePromiseControl(_shape, Complete, SetKeepGoing, GetAsyncCallback, GetAsyncCallback, PerformStop, PerformShutdown);
@@ -348,7 +347,7 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
                     _pendingPartitions = _pendingPartitions.Remove(topicPartition);
                     _partitionsInStartup = _partitionsInStartup.Add(topicPartition);
 
-                    var subSourceStage = new SubSourceStreamStage<K, V, TMessage>(
+                    var subSourceStage = new SubSourceStreamStage(
                         topicPartition,
                         ConsumerActor,
                         _subsourceStartedCallback,
@@ -378,9 +377,9 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
             Control.OnStop();
         }
 
-        private void PerformShutdown(Exception ex)
+        private void PerformShutdown(Exception? ex)
         {
-            if (ex is { } and not SubscriptionWithCancelException.NonFailureCancellation)
+            if (ex is not null and not SubscriptionWithCancelException.NonFailureCancellation)
                 Log.Info(ex, $"{nameof(SubSourceLogic<K, V, TMessage>)} was shutdown due to exception");
             
             SetKeepGoing(true);
@@ -410,7 +409,7 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
         protected class SubSourcePromiseControl : PromiseControl<(TopicPartition, Source<TMessage, NotUsed>)>
         {
             private readonly Action _performStop;
-            private readonly Action<Exception> _performShutdown;
+            private readonly Action<Exception?> _performShutdown;
 
             public SubSourcePromiseControl(SourceShape<(
                     TopicPartition,
@@ -418,9 +417,9 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
                     Action<Outlet<(TopicPartition, Source<TMessage, NotUsed>)>> completeStageOutlet,
                     Action<bool> setStageKeepGoing, 
                     Func<Action, Action> asyncCallbackFactory,
-                    Func<Action<Exception>, Action<Exception>> asyncShutdownCallbackFactory,
+                    Func<Action<Exception?>, Action<Exception?>> asyncShutdownCallbackFactory,
                     Action performStop, 
-                    Action<Exception> performShutdown)
+                    Action<Exception?> performShutdown)
                 : base(shape, completeStageOutlet, setStageKeepGoing, asyncCallbackFactory, asyncShutdownCallbackFactory)
             {
                 _performStop = performStop;
@@ -431,26 +430,26 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
             public override void PerformStop() => _performStop();
 
             /// <inheritdoc />
-            public override void PerformShutdown(Exception ex) => _performShutdown(ex);
+            public override void PerformShutdown(Exception? ex) => _performShutdown(ex);
         }
 
-        private class SubSourceStreamStage<K, V, TMsg> : GraphStage<SourceShape<TMsg>>
+        private class SubSourceStreamStage : GraphStage<SourceShape<TMessage>>
         {
             private readonly TopicPartition _topicPartition;
             private readonly IActorRef _consumerActor;
             private readonly Action<(TopicPartition, IControl)> _subSourceStartedCallback;
             private readonly Action<(TopicPartition, ISubSourceCancellationStrategy)> _subSourceCancelledCallback;
-            private readonly IMessageBuilder<K, V, TMsg> _messageBuilder;
+            private readonly IMessageBuilder<K, V, TMessage> _messageBuilder;
             private readonly int _actorNumber;
             private readonly Decider _decider;
 
-            public Outlet<TMsg> Out { get; }
-            public override SourceShape<TMsg> Shape { get; }
+            public Outlet<TMessage> Out { get; }
+            public override SourceShape<TMessage> Shape { get; }
 
             public SubSourceStreamStage(TopicPartition topicPartition, IActorRef consumerActor,
                                   Action<(TopicPartition, IControl)> subSourceStartedCallback,
                                   Action<(TopicPartition, ISubSourceCancellationStrategy)> subSourceCancelledCallback,
-                                  IMessageBuilder<K, V, TMsg> messageBuilder,
+                                  IMessageBuilder<K, V, TMessage> messageBuilder,
                                   Decider decider,
                                   int actorNumber)
             {
@@ -462,8 +461,8 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
                 _decider = decider;
                 _actorNumber = actorNumber;
 
-                Out = new Outlet<TMsg>("out");
-                Shape = new SourceShape<TMsg>(Out);
+                Out = new Outlet<TMessage>("out");
+                Shape = new SourceShape<TMessage>(Out);
             }
 
             protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -474,22 +473,22 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
 
             private class SubSourceStreamStageLogic : GraphStageLogic
             {
-                private readonly SourceShape<TMsg> _shape;
+                private readonly SourceShape<TMessage> _shape;
                 private readonly TopicPartition _topicPartition;
                 private readonly IActorRef _consumerActor;
                 private readonly int _actorNumber;
-                private readonly IMessageBuilder<K, V, TMsg> _messageBuilder;
+                private readonly IMessageBuilder<K, V, TMessage> _messageBuilder;
                 private readonly Action<(TopicPartition, IControl)> _subSourceStartedCallback;
                 private readonly KafkaConsumerActorMetadata.Internal.RequestMessages _requestMessages;
                 private bool _requested = false;
-                private StageActor _subSourceActor;
+                private StageActor _subSourceActor = null!;
                 private readonly Decider _decider;
                 private readonly ConcurrentQueue<ConsumeResult<K, V>> _buffer = new ConcurrentQueue<ConsumeResult<K, V>>();
 
-                public PromiseControl<TMsg> Control { get; }
+                public PromiseControl<TMessage> Control { get; }
 
-                public SubSourceStreamStageLogic(SourceShape<TMsg> shape, TopicPartition topicPartition, IActorRef consumerActor,
-                                           int actorNumber, IMessageBuilder<K, V, TMsg> messageBuilder, Decider decider,
+                public SubSourceStreamStageLogic(SourceShape<TMessage> shape, TopicPartition topicPartition, IActorRef consumerActor,
+                                           int actorNumber, IMessageBuilder<K, V, TMessage> messageBuilder, Decider decider,
                                            Action<(TopicPartition, IControl)> subSourceStartedCallback,
                                            Action<(TopicPartition, ISubSourceCancellationStrategy)> subSourceCancelledCallback)
                     : base(shape)
@@ -587,24 +586,23 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
                     }
                 }
 
-                private class SubSourceStreamPromiseControl : PromiseControl<TMsg>
+                private class SubSourceStreamPromiseControl : PromiseControl<TMessage>
                 {
-                    private readonly ILoggingAdapter _log;
                     private readonly Action<string, object[]> _debugLog;
                     private readonly int _actorNumber;
                     private readonly TopicPartition _topicPartition;
-                    private readonly Action<Exception> _completeStage;
+                    private readonly Action<Exception?> _completeStage;
 
                     public SubSourceStreamPromiseControl(
-                        SourceShape<TMsg> shape,
-                        Action<Outlet<TMsg>> completeStageOutlet,
+                        SourceShape<TMessage> shape,
+                        Action<Outlet<TMessage>> completeStageOutlet,
                         Action<bool> setStageKeepGoing,
                         Func<Action, Action> asyncCallbackFactory,
-                        Func<Action<Exception>, Action<Exception>> asyncShutdownCallbackFactory,
+                        Func<Action<Exception?>, Action<Exception?>> asyncShutdownCallbackFactory,
                         Action<string, object[]> debugLog,
                         int actorNumber,
                         TopicPartition topicPartition,
-                        Action<Exception> completeStage)
+                        Action<Exception?> completeStage)
                         : base(shape, completeStageOutlet, setStageKeepGoing, asyncCallbackFactory, asyncShutdownCallbackFactory)
                     {
                         _debugLog = debugLog;
@@ -613,9 +611,9 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
                         _completeStage = completeStage;
                     }
 
-                    public override void PerformShutdown(Exception ex)
+                    public override void PerformShutdown(Exception? ex)
                     {
-                        _debugLog("#{0} Completing SubSource for partition {1}", new object[] { _actorNumber, _topicPartition });
+                        _debugLog("#{0} Completing SubSource for partition {1}", [_actorNumber, _topicPartition]);
                         _completeStage(ex);
                     }
                 }

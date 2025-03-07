@@ -11,9 +11,7 @@ using Akka.Event;
 using Akka.Streams.Dsl;
 using Akka.Streams.Kafka.Dsl;
 using Akka.Streams.Kafka.Helpers;
-using Akka.Streams.Kafka.Messages;
 using Akka.Streams.Kafka.Settings;
-using Akka.Streams.Kafka.Tests.Logging;
 using Akka.Streams.Supervision;
 using Akka.Streams.TestKit;
 using Akka.Util.Internal;
@@ -21,7 +19,6 @@ using Confluent.Kafka;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
-using Config = Akka.Configuration.Config;
 
 namespace Akka.Streams.Kafka.Tests.Integration
 {
@@ -37,7 +34,7 @@ namespace Akka.Streams.Kafka.Tests.Integration
         {
             return KafkaConsumer
                 .PlainSource(consumerSettings, sub)
-                .Select(c => c.Value)
+                .Select(c => c.Message.Value)
                 .ToMaterialized(this.SinkProbe<string>(), Keep.Both)
                 .Run(Materializer);
         }
@@ -50,7 +47,7 @@ namespace Akka.Streams.Kafka.Tests.Integration
             var group1 = CreateGroup(1);
             var topicPartition1 = new TopicPartition(topic1, 0);
 
-            await GivenInitializedTopic(topicPartition1);
+            await GivenInitializedTopicAsync(topicPartition1);
 
             await ProduceStrings(topicPartition1, Enumerable.Range(1, elementsCount), ProducerSettings);
 
@@ -74,7 +71,7 @@ namespace Akka.Streams.Kafka.Tests.Integration
             var group1 = CreateGroup(1);
             var topicPartition1 = new TopicPartition(topic1, 0);
 
-            await GivenInitializedTopic(topicPartition1);
+            await GivenInitializedTopicAsync(topicPartition1);
 
             await ProduceStrings(topicPartition1, Enumerable.Range(0, elementsCount), ProducerSettings);
 
@@ -97,7 +94,7 @@ namespace Akka.Streams.Kafka.Tests.Integration
             var group1 = CreateGroup(1);
             var topicPartition1 = new TopicPartition(topic1, 0);
 
-            await GivenInitializedTopic(topicPartition1);
+            await GivenInitializedTopicAsync(topicPartition1);
 
             await ProduceStrings(new TopicPartition(topic1, 0), Enumerable.Range(1, elementsCount), ProducerSettings);
 
@@ -120,7 +117,7 @@ namespace Akka.Streams.Kafka.Tests.Integration
             var group1 = CreateGroup(1);
             var topicPartition1 = new TopicPartition(topic1, 0);
 
-            await GivenInitializedTopic(topicPartition1);
+            await GivenInitializedTopicAsync(topicPartition1);
 
             var config = ConsumerSettings<Null, string>.Create(Sys, null, null)
                 .WithBootstrapServers("localhost:10092")
@@ -209,7 +206,7 @@ namespace Akka.Streams.Kafka.Tests.Integration
             var group1 = CreateGroup(1);
             var topicPartition1 = new TopicPartition(topic1, 0);
 
-            await GivenInitializedTopic(topicPartition1);
+            await GivenInitializedTopicAsync(topicPartition1);
 
             await ProduceStrings(new TopicPartition(topic1, 0), Enumerable.Range(1, elementsCount), ProducerSettings);
 

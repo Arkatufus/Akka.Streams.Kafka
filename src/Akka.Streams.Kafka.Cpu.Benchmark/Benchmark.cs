@@ -8,7 +8,7 @@ namespace Akka.Streams.Kafka.Cpu.Benchmark
 {
     public static class Benchmark
     {
-        public static ActorSystem ConsumerSystem { get; private set; }
+        public static ActorSystem ConsumerSystem { get; private set; } = null!;
         public static string KafkaTopic { get; }
         public static string KafkaGroup { get; }
         public static readonly DockerSupport Docker;
@@ -27,7 +27,7 @@ namespace Akka.Streams.Kafka.Cpu.Benchmark
             await Docker.SetupContainersAsync();
         }
 
-        public static async Task SetupAkkaAsync()
+        public static Task SetupAkkaAsync()
         {
             Console.WriteLine("Starting Akka ActorSystems");
             
@@ -50,6 +50,7 @@ akka {
             
             ConsumerSystem = ActorSystem.Create("akka-kafka-consumer", config);
             Console.WriteLine("ActorSystems started");
+            return Task.CompletedTask;
         }
 
         public static async Task TearDownAkkaAsync()

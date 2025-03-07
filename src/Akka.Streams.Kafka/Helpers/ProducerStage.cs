@@ -11,14 +11,14 @@ namespace Akka.Streams.Kafka.Helpers
     /// <summary>
     /// INTERNAL API
     ///
-    /// Implemented by <see cref="DefaultProducerStage{K,V,P,TIn,TOut}"/> as <see cref="TransactionalProducerStage{K,V,P,TIn,TOut}"/>
+    /// Implemented by <see cref="DefaultProducerStage{K,V,P,TIn,TOut}"/> and <see cref="Akka.Streams.Kafka.Stages.TransactionalProducerStage{K,V,TPassThrough}"/>
     /// </summary>
     [InternalApi]
     public interface IProducerStage<K, V, P, TIn, TOut> where TIn : IEnvelope<K, V, P> where TOut : IResults<K, V, P>
     {
         TimeSpan FlushTimeout { get; }
         bool CloseProducerOnStop { get; }
-        Func<Action<IProducer<K, V>, Error>, IProducer<K, V>> ProducerProvider { get; }
+        Func<Action<IProducer<K, V>, Error>?, IProducer<K, V>> ProducerProvider { get; }
         
         Inlet<TIn> In { get; }
         Outlet<Task<TOut>> Out { get; }

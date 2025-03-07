@@ -2,18 +2,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Runtime.Serialization;
-using System.Threading.Tasks;
 using Akka.Actor;
-using Akka.Dispatch;
 using Akka.Streams.Kafka.Helpers;
 using Akka.Streams.Kafka.Settings;
 using Akka.Streams.Kafka.Stages.Consumers.Actors;
-using Akka.Streams.Kafka.Stages.Consumers.Exceptions;
-using Akka.Streams.Kafka.Supervision;
 using Akka.Streams.Stage;
-using Akka.Streams.Supervision;
-using Akka.Streams.Util;
 using Confluent.Kafka;
 using Decider = Akka.Streams.Supervision.Decider;
 using Directive = Akka.Streams.Supervision.Directive;
@@ -38,8 +31,8 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
         private readonly ConcurrentQueue<ConsumeResult<K, V>> _buffer = new ConcurrentQueue<ConsumeResult<K, V>>();
         protected IImmutableSet<TopicPartition> TopicPartitions { get; set; } = ImmutableHashSet.Create<TopicPartition>();
 
-        protected StageActor SourceActor { get; private set; }
-        internal IActorRef ConsumerActor { get; private set; }
+        protected StageActor SourceActor { get; private set; } = null!;
+        internal IActorRef ConsumerActor { get; private set; } = null!;
 
         /// <summary>
         /// Implements <see cref="IControl"/> to provide control over executed source
@@ -190,7 +183,7 @@ namespace Akka.Streams.Kafka.Stages.Consumers.Abstract
             _requested = true;
             _requestId += 1;
             if (Log.IsDebugEnabled)
-                Log.Debug("Requesting messages, requestId: {0}, partitions: {1}", _requestId, string.Join(", ", TopicPartitions));
+                Log.Debug("[{0}] Requesting messages, requestId: {1}, partitions: {2}", ConsumerActor.Path.Name, _requestId, string.Join(", ", TopicPartitions));
             ConsumerActor.Tell(new KafkaConsumerActorMetadata.Internal.RequestMessages(_requestId, TopicPartitions.ToImmutableHashSet()), SourceActor.Ref);
         }
 

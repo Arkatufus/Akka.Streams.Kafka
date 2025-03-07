@@ -32,7 +32,7 @@ namespace Akka.Streams.Kafka.Messages
     /// </list>
     /// </para>
     /// <para>
-    /// In either of the cases above, the timestamp that has actually been used will be returned to user in <see cref="RecordMetadata"/>
+    /// In either of the cases above, the timestamp that has actually been used will be returned to user in <see cref="Confluent.Kafka.DeliveryResult{K,V}"/>
     /// </para>
     /// </summary>
     /// <typeparam name="K">Type of key</typeparam>
@@ -134,14 +134,14 @@ namespace Akka.Streams.Kafka.Messages
                    $")";
         }
 
-        public bool Equals(ProducerRecord<K, V> other)
+        public bool Equals(ProducerRecord<K, V>? other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
             return Topic == other.Topic && Partition == other.Partition && Timestamp == other.Timestamp && Equals(Message, other.Message);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
